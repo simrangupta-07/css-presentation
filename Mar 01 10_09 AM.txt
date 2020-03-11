@@ -1,0 +1,720 @@
+Get Started with Visualforce
+============================
+The page must be named DisplayImage
+It must NOT display the standard Salesforce header
+It must use a Visualforce apex:image component to display this image - https://developer.salesforce.com/files/salesforce-developer-network-logo.png
+
+
+<apex:page showHeader="false">
+    <apex:image url="https://developer.salesforce.com/files/salesforce-developer-network-logo.png"/>
+</apex:page>
+
+Create & Edit Visualforce Pages
+===============================
+DisplayUserInfo
+
+<apex:page >
+    <apex:pageBlock title="User Status">
+        <apex:pageBlockSection columns="1">
+            {!$User.FirstName} {!$User.LastName } ({!$User.Username })
+        </apex:pageBlockSection>
+     </apex:pageBlock>
+</apex:page>
+---------------------------------------
+<apex:page standardController="Contact">
+    <apex:pageBlock>
+    <apex:pageBlockSection>
+        First Name:{!Contact.FirstName} <br/>
+        Last Name:{!Contact.LastName} <br/>
+        Owner Email:{!Contact.Owner.Email} <br/>
+    </apex:pageBlockSection>
+        </apex:pageBlock>
+</apex:page>
+--------------------------------------------
+OppView
+
+<apex:page standardController="Opportunity">
+    <apex:pageBlock>
+    	<apex:pageBlockSection>
+        <apex:outputField value="{! Opportunity.Name }"/>
+        <apex:outputField value="{! Opportunity.Amount }"/>
+        <apex:outputField value="{! Opportunity.CloseDate }"/>
+        <apex:outputField value="{! Opportunity.Account.Name }"/>
+        </apex:pageBlockSection>
+    </apex:pageBlock>
+</apex:page>
+-------------------------------------------------
+CreateContact
+
+<apex:page standardController="Contact">
+    <apex:form>
+        <apex:inputField value="{!Contact.FirstName}" />
+        <apex:inputField value="{!Contact.LastName}" />
+        <apex:inputField value="{!Contact.Email}" />
+        <apex:commandButton value="Save" action="{!save}"/>
+    </apex:form>
+</apex:page>
+-------------------------------------------------
+AccountList
+
+<apex:page standardController="Account" recordSetVar="accounts">
+    <apex:repeat value="{!accounts}" var="a">
+                 <li> <apex:outputLink value="/{!a.Id}">{!a.name} </apex:outputLink> </li>
+            </apex:repeat>
+
+</apex:page>
+-----------------------------------------------------
+ShowImage
+
+<apex:page >
+    <apex:image url="{!URLFOR($Resource.vfimagetest, 'cats/kitten1.jpg')}"/>
+</apex:page>
+---------------------------------------------------
+NewCaseList
+
+<apex:page controller="NewCaseListController">
+    <apex:repeat var="case" value="{!newCases}">
+    	<apex:outputLink value="/{! case.id}">
+        ID:  {! case.id }
+        </apex:outputLink><br/>
+        <apex:outputLink value="/{! case.id}">
+        Case Number:  {! case.CaseNumber }
+        </apex:outputLink><br/>
+    </apex:repeat>
+</apex:page>
+
+NewCaseListController
+
+public class NewCaseListController {
+	public List<Case> getNewCases()
+    {
+        return [select Id,CaseNumber from Case where Status='New'];
+    }
+}
+----------------------------------------------------
+To pass this challenge, create an Apex class that inserts a new account named after an incoming parameter. If the account is successfully inserted, the method should return the account record. If a DML exception occurs, the method should return null.
+The Apex class must be called AccountHandler and be in the public scope
+The Apex class must have a public static method called insertNewAccount
+The method must accept an incoming string as a parameter, which will be used to create the Account name
+The method must insert the account into the system and then return the record
+The method must also accept an empty string, catch the failed DML and then return null
+
+public class AccountHandler {
+	
+    public static Account insertNewAccount(String AccountName){
+
+        Account acct = new Account(Name=AccountName);
+
+        try {
+            insert acct;
+
+        } catch (DMLException e){
+            return null;
+        }
+
+        return acct;
+	}
+}
+-----------------------------------------------------------------
+Write SOQL Queries
+
+public class ContactSearch {
+	public static list<Contact> searchForContacts(String s1,String s2)
+    {
+        list<Contact> conlist=new list<Contact>();
+        conlist=[select Id,Name from Contact where LastName=:s1 and MailingPostalCode=:s2];
+        return conlist;
+    }
+}
+---------------------------------------------------------------------------
+Write SOSL Queries
+
+public class ContactAndLeadSearch {
+    public static list<list<sObject>> searchContactsAndLeads(String lastName)
+    {
+        List<List<sObject>> searchList=[FIND :lastName IN NAME FIELDS 
+                   RETURNING Contact(Name),Lead(FirstName)];
+        System.debug(searchList);
+        
+        return searchList;
+    }
+}
+--------------------------------------------------------------------------
+Get Started with Apex Unit Tests
+
+@isTest
+private class TestVerifyDate {
+    @isTest static void testCheckDates(){
+        //if within 30 days && id d1<d2
+        date da1 = date.newInstance(2020, 1, 1);
+        date da2 = date.newInstance(2020, 1, 30);
+        date da3 = VerifyDate.CheckDates(da1, da2);
+        system.assertEquals(da3, da2, 'true');
+        
+        //if within 30 days && id d1>d2..so return end of month
+        date db1 = date.newInstance(2020, 3, 25);
+        date db2 = date.newInstance(2020, 3, 1);
+        date db3 = VerifyDate.CheckDates(db1, db2);
+        date dbt = date.newInstance(2020, 3 , 31);
+        system.assertEquals(db3, dbt, 'true');
+    }
+}
+-------------------------------------------------------------------------
+The Apex trigger must be called 'ClosedOpportunityTrigger'
+With 'ClosedOpportunityTrigger' active, if an opportunity is inserted or updated with a stage of 'Closed Won', it will have a task created with the subject 'Follow Up Test Task'.
+To associate the task with the opportunity, fill the 'WhatId' field with the opportunity ID.
+This challenge specifically tests 200 records in one operation.
+
+trigger ClosedOpportunityTrigger on Opportunity (after insert, after update) {
+    List<Task> taskList = new List<Task>();
+	 if(trigger.isAfter && (trigger.isInsert || trigger.isUpdate)) {
+     	for (Opportunity Opp :Trigger.New) {
+        	Task t = new Task();
+            if(Opp.StageName.equalsIgnoreCase('Closed Won')) {
+                t.WhatId = Opp.Id;
+                t.subject = 'Follow Up Test Task';
+            }
+            taskList.add(t);
+        }
+         insert taskList;
+     }
+        
+}
+--------------------------------------------------------
+Get Started with Apex Triggers
+
+trigger AccountAddressTrigger on Account (before insert, before update) {
+    if(trigger.isBefore && (trigger.isInsert || trigger.isUpdate)) {
+        for(Account acc : trigger.new) {
+            if(acc.Match_Billing_Address__c == true && acc.BillingPostalCode != null) {
+               	acc.ShippingPostalCode = acc.BillingPostalCode;
+            }
+        }
+    }
+}
+
+-------------------------------------
+APPLICATION EVENT
+------------
+appEvent
+
+<aura:event type="APPLICATION" description="Event template" >
+    <aura:attribute name="searchStr" type="String"/>
+    <aura:attribute name="isSearch" type="Boolean" default="false"/>
+</aura:event>
+
+-------------------------------------
+searchComp
+
+
+<aura:component >
+    <aura:registerEvent name="appEvent" type="c:appEvent"/>
+    <div class="slds-form slds-form--stacked">
+    <lightning:input label="Search Contact" type="search" onkeyup="{!c.search}" aura:id="searchString"></lightning:input>
+    </div>
+</aura:component>
+
+----------------------------
+searchCompController
+
+
+({
+	search : function(component, event, helper) {
+        var ev=$A.get("e.c:appEvent");
+        ev.setParams({"searchStr":component.find("searchString").get("v.value"),"isSearch":true});
+        ev.fire();
+		
+	}
+})
+
+---------------------------
+technicianDetails
+
+
+<aura:component controller="ContactController">
+    <aura:attribute name="clist" type="List"/>
+    <aura:handler event="c:appEvent" action="c.show"/>
+    <div>
+        <table class="slds-table slds-table--bordered">
+            <tbody>
+                <aura:iteration items="{!v.clist}" var="c">
+                    <tr>
+                        <td>{!c.FirstName}</td> 
+                        <td>{!c.LastName}</td> 
+                        <td>{!c.Email}</td> 
+                        <td>{!c.MailingState}</td> 
+                    </tr>    
+                </aura:iteration>    
+            </tbody>    
+        </table>
+    </div>
+    
+</aura:component>
+
+------------------------------
+technicianDetailsController
+
+
+
+({
+	show : function(component, event, helper) {
+        if(event.getParams().isSearch) {
+            var req = component.get("c.showTechniciansBySearch");
+            req.setParams({"searchString":event.getParams().searchStr});
+            $A.enqueueAction(req);
+            req.setCallback(this,function(res){
+                if(res.getState()=="SUCCESS") {
+                    component.set("v.clist", res.getReturnValue());
+                }
+            })
+            console.log(JSON.parse(JSON.stringify(component.get("v.clist"))));
+        } else {
+            var req = component.get("c.showTechniciansByState");
+            req.setParams({"searchString":event.getParams().searchStr});
+            $A.enqueueAction(req);
+            req.setCallback(this,function(res){
+                if(res.getState()=="SUCCESS") {
+                    component.set("v.clist", res.getReturnValue());
+                }
+            })
+        }
+	}
+})
+
+------------------------------
+ContactController
+
+public class ContactController {
+@AuraEnabled
+    public static list<Contact> showTechniciansBySearch(String searchString){
+        list<Contact> conList=[select FirstName,LastName,Email,MailingState from Contact where Name like:'%' + searchString + '%'];
+        return conList;
+    }
+    @AuraEnabled
+    public static list<Contact> showTechniciansByState(String searchString){
+        list<Contact> conList=[select FirstName,LastName,Email,MailingState from Contact where MailingState like:'%' + searchString + '%'];
+        return conList;
+    }
+}
+
+-------------------------
+owner.cmp
+
+<aura:component >
+    <c:searchComp/>
+    <c:technicianDetails/>
+</aura:component>
+
+-------------------
+
+application
+
+
+
+<aura:application extends="force:slds">
+    <c:owner/>
+</aura:application>
+------------------------------------------------------------------
+TO HOST ANY COMPONENT AS A TAB
+
+<aura:component implements="force:appHostable">
+    <c:searchComp />
+    <c:technicianDetails />
+</aura:component>
+---------------------------------------------------------------
+TO HOST AS GLOBAL ACTION
+
+IMPLEMENTS="force:lightningQuickAction"
+
+----------------------------------------------------------------
+Lightning Bundle Configurations Available in the Developer Console
+
+https://developer.salesforce.com/docs/atlas.en-us.lightning.meta/lightning/components_devconsole_configs.htm?search_text=interface
+-------------------------------------------------------------------------
+Salesforce 1 simulator
+-------------------------------------------------------------------------
+Create a Lightning Component to display a single item for your packing list.
+Create a component called campingListItem.
+Add an attribute named item of type Camping_Item__c that is required.
+Display Name, Price, Quantity, Packed using an expression.
+Display Price and Quantity using the appropriate formatted number fields.
+Display Packed status using a toggle.
+
+<aura:component >
+	<aura:attribute name="item" type="Camping_Item__c" required="true"/>
+    
+    <p>Name:
+        <lightning:formattedText value="{!v.item.Name}"/>
+    </p>
+    <p>Price:
+        <lightning:formattedNumber style="currency" value="{!v.item.Price__c}"/>
+    </p>
+   <p>Quantity:<lightning:formattedNumber value="{!v.item.Quantity__c}"/></p>  
+    <p>
+       <lightning:input type="toggle"                            
+                         label="Packed?"                           
+                         name="Packed"                         
+                         checked="{!v.item.Packed__c}" />
+</aura:component>
+------------------------------------------------------------------------------------
+In this challenge you'll create a form to enter new items, a list to display the items entered, and add SLDS styling. First, to make our camping list look more appealing, change the campingHeader component to use lightning:layout and SLDS. Similar to the unit, style the Camping List H1 inside the slds-page-header. Add the action:goal SLDS icon using lightning:icon.
+
+Next, modify the campingList component to contain a new item input form and an iteration of campingListItem components for displaying the items entered. Here are additional details for the modifications to the campingList component.
+
+Add an attribute named items with the type of an array of camping item custom objects.
+Add an attribute named newItem of type Camping_Item__c with default quantity and price values of 0.
+The component displays the Name, Quantity, Price, and Packed form fields with the appropriate input component types and values from the newItem attribute. The Quantity field accepts a number that's at least 1.
+Submitting the form executes the action clickCreateItem in the JavaScript controller.
+
+campingHeader.cmp
+01
+<aura:component >
+02
+  <lightning:layout class="slds-page-header slds-page-header--object-home">
+03
+        <lightning:layoutItem >
+04
+            <lightning:icon iconName="action:goal" alternativeText="My Camping"/>
+05
+        </lightning:layoutItem>
+06
+        <lightning:layoutItem padding="horizontal-small">
+07
+            <div class="page-section page-header">
+08
+                <h1 class="slds-text-heading--label">Camping</h1>
+09
+                <h2 class="slds-text-heading--medium">My Camping</h2>
+10
+            </div>
+11
+        </lightning:layoutItem>
+12
+    </lightning:layout>
+13
+</aura:component>
+
+CampingList.cmp
+ 
+
+<aura:component >
+
+    <aura:attribute name="items" type="Camping_Item__c[]"/>
+
+    <aura:attribute name="newItem" type="Camping_Item__c" default="{'Name':'',
+
+                                                                   'Quantity__c':0,
+
+                                                                   'Price__c':0,
+
+                                                                   'Packed__c':false,
+
+                                                                   'sobjectType':'Camping_Item__c'}"/>
+
+     
+
+    <!-- NEW Campaing FORM -->
+
+    <div class="slds-col slds-col--padded slds-p-top--large">
+
+         
+
+         
+
+        <c:campingHeader/>
+
+         
+
+        <div aria-labelledby="newCampaingForm">
+
+             
+
+            <!-- BOXED AREA -->
+
+            <fieldset class="slds-box slds-theme--default slds-container--small">
+
+                 
+
+                <legend id="newCampaingForm" class="slds-text-heading--small
+
+                                                   slds-p-vertical--medium">
+
+                    Add Expense
+
+                </legend>
+
+                 
+
+                <!-- CREATE NEW Campaing FORM -->
+
+                <form class="slds-form--stacked">
+
+                     
+
+                    <!-- For Name Field -->
+        <lightning:input aura:id="expenseform" label="Camping Name"
+
+                         name="expensename"
+
+                         value="{!v.newItem.Name}"
+
+                         required="true"/>
+
+        <!-- For Quantity Field -->
+
+        <lightning:input type="number" aura:id="campingform" label="Quantity"
+
+                         name="expenseamount"
+
+                         min="1"
+
+                         value="{!v.newItem.Quantity__c}"
+
+                         messageWhenRangeUnderflow="Enter minimum 1 Quantity"/>
+
+         <!-- For Price Field -->
+
+        <lightning:input aura:id="campingform" label="Price"
+
+                         formatter="currency"
+
+                         name="expenseclient"
+
+                         value="{!v.newItem.Price__c}"
+
+                          />
+
+         <!-- For Check Box -->
+
+        <lightning:input type="checkbox" aura:id="campingform" label="Packed" 
+
+                         name="expreimbursed"
+
+                         checked="{!v.newItem.Packed__c}"/>
+
+         
+
+        <lightning:button label="Create Camping"
+
+                          class="slds-m-top--medium"
+
+                          variant="brand"
+
+                          onclick="{!c.clickCreateItem}"/>
+                </form>
+                <!-- / CREATE NEW EXPENSE FORM -->
+            </fieldset>
+            <!-- / BOXED AREA -->
+        </div>
+        <!-- / CREATE NEW EXPENSE -->
+    </div>
+<!-- ITERATIING ITEM LISTS -->
+    <div class="slds-card slds-p-top--medium">
+        <c:campingHeader/>
+        <section class="slds-card__body">
+            <div id="list" class="row">
+                <aura:iteration items="{!v.items}" var="item">
+                    <c:campingListItem item="{!item}"/>
+                </aura:iteration>
+            </div>
+        </section>
+    </div>   
+    <!-- / ITERATIING ITEM LISTS -->
+</aura:component>
+
+campingListController.js
+ 
+({
+    clickCreateItem : function(component, event, helper) {
+    var validCamping = component.find('campingform').reduce(function (validSoFar, inputCmp) {
+            // Displays error messages for invalid fields
+            inputCmp.showHelpMessageIfInvalid();
+            return validSoFar && inputCmp.get('v.validity').valid;
+        }, true);
+        if(validCamping){
+            var newCampingItem = component.get("v.newItem");
+            //helper.createCamping(component,newCampingItem);
+            var campings = component.get("v.items");
+            var item = JSON.parse(JSON.stringify(newCampingItem));
+            campings.push(item);
+            component.set("v.items",campings);
+            component.set("v.newItem",{ 'sobjectType': 'Camping_Item__c','Name': '','Quantity__c': 0,
+                                       'Price__c': 0,'Packed__c': false });
+        }
+    }
+})
+
+campingListItem.cmp
+ 
+<aura:component >
+    <aura:attribute name="item" type="Camping_Item__c"/>
+    <p>Name:
+        <ui:outputText value="{!v.item.Name}"/>
+    </p>
+    <p>Price:
+        <ui:outputCurrency value="{!v.item.Price__c}"/>
+    </p>
+    <p>Quantity:
+        <ui:outputNumber value="{!v.item.Quantity__c}"/>
+    </p>
+    <p>Packed:
+        <ui:outputCheckbox value="{!v.item.Packed__c}"/>
+    </p>
+</aura:component>
+-------------------------------------------------------------------
+LIGHTNING WEB COMPONENTS
+
+lightningDataServiceLwc.html
+----------------------------
+
+<template>
+    <lightning-record-form record-id={recordId} object-api-name="Account" layout-type="Compact" mode="view"></lightning-record-form>
+</template>
+
+lightningDataServiceLwc.js
+--------------------------
+
+import { LightningElement, api } from 'lwc';
+
+export default class LightningDataServiceLwc extends LightningElement {
+    @api recordId;
+}
+
+lightningDataServiceLwc.js-meta.xml
+-----------------------------------
+
+<?xml version="1.0" encoding="UTF-8"?>
+<LightningComponentBundle xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>47.0</apiVersion>
+    <isExposed>true</isExposed>
+    <targets>
+        <target>lightning__AppPage</target>
+        <target>lightning__RecordPage</target>
+    </targets>
+</LightningComponentBundle>
+
+----------------------------------------------------------------
+lightningRecordForm.html
+-----------------------
+<template>
+    <lightning-record-view-form record-id={recordId} object-api-name="Account">
+        <div class="slds-grid">
+            <div class="slds-col slds-size_1-of-2">
+                <lightning-output-field field-name="Name"></lightning-output-field>
+                <lightning-output-field field-name="Phone"></lightning-output-field>
+            </div>
+            <div class="slds-col slds-size_1-of-2">
+                <lightning-output-field field-name="Industry"></lightning-output-field>
+                <lightning-output-field field-name="AnnualRevenue"></lightning-output-field>
+            </div>
+        </div>
+    </lightning-record-view-form>
+</template>
+
+------------------------------------------------------------------
+
+using <targetConfigs> in helloWorldLwc component
+
+helloWorldLWC.js-meta.xml
+------------------------
+
+<?xml version="1.0" encoding="UTF-8"?>
+<LightningComponentBundle xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>47.0</apiVersion>
+    <isExposed>true</isExposed>
+    <targets>
+        <target>lightning__HomePage</target>
+        <target>lightning__RecordPage</target>
+        <target>lightning__AppPage</target>
+    </targets>
+    <targetConfigs>
+        <targetConfig targets="lightning__HomePage,lightning__AppPage">
+            <property name="firstname" type="String" label="Greet to?"></property>
+        </targetConfig>
+    </targetConfigs>
+</LightningComponentBundle>
+----------------------------------------------------------------
+
+CALL APEX METHODS
+a) wired by property
+
+wiredByPropertyLwc.html
+-----------------------
+<template>
+    <lightning-card title="Apex Wired By Property" icon-name="custom:custom63">
+        <div class="slds-m-around_medium">
+            <template if:true={contacts.data}>
+                <template for:each={contacts.data} for:item="contact">
+                    <p key={contact.Id}>{contact.Name}</p>
+                </template>
+            </template>
+            <template if:true={contacts.error}>
+                <p>Errors</p>
+              <p>{contacts.error}</p>
+            </template>
+        </div>
+    </lightning-card>
+</template>
+
+wiredByPropertyLwc.js
+---------------------
+import { LightningElement, wire } from 'lwc';
+import getContactList from '@salesforce/apex/ContactController.getContactList';
+
+export default class WireByPropertyLwc extends LightningElement {
+    @wire(getContactList) contacts; //wire getContactList with contacts variable
+}
+-----------------------------------------------------
+b) wired by function
+
+wiredByFunctionLwc.html
+-----------------------
+<template>
+    <lightning-card title="Apex Wired By Function" icon-name="custom:custom63">
+        <div class="slds-m-around_medium">
+            <template if:true={contacts}>
+                <template for:each={contacts} for:item="contact">
+                    <p key={contact.Id}>{contact.Name}</p>
+                </template>
+            </template>
+            <template if:true={error}>
+                <p>Errors</p>
+              <p>{contacts.error}</p>
+            </template>
+        </div>
+    </lightning-card>
+</template>
+
+wiredByFunctionLwc.js
+---------------------
+import { LightningElement, track, wire } from 'lwc';
+import getContactList from '@salesforce/apex/ContactController.getContactList';
+
+export default class WiredByFunctionLwc extends LightningElement {
+    @track contacts;
+    @track error;
+
+    @wire(getContactList)
+    wiredContacts({error , data})
+    {
+        if(data)
+        {
+            this.contacts=data;
+            this.error=undefined;
+        }
+        else if(error)
+        {
+            this.error=error;
+            this.contacts=undefined;
+        }
+    }
+}
+
+lwcDemoApp.app
+--------------
+<aura:application extends="force:slds">
+    <!--<c:helloWorldLWC></c:helloWorldLWC>
+    <c:wireByPropertyLwc></c:wireByPropertyLwc>-->
+    <c:wiredByFunctionLwc></c:wiredByFunctionLwc>
+</aura:application>	
+------------------------------------------------------------------------------
