@@ -710,6 +710,16 @@ export default class WiredByFunctionLwc extends LightningElement {
     }
 }
 
+ContactController.cls
+---------------------
+@auraEnabled(cacheable=true)
+    public static list<Contact> getContactList()
+    {
+        list<Contact> conlist= [select Name, FirstName , LastName , Email , MailingState from Contact];
+        
+        return conlist;
+    }
+
 lwcDemoApp.app
 --------------
 <aura:application extends="force:slds">
@@ -718,3 +728,219 @@ lwcDemoApp.app
     <c:wiredByFunctionLwc></c:wiredByFunctionLwc>
 </aura:application>	
 ------------------------------------------------------------------------------
+//searching for contacts using wired with parameters and added new function in contactController class(findContacts)
+
+wiredByParamsLwc.html
+---------------------
+<!--searching in contacts with a button-->
+<template>
+    <lightning-card title="ApexWireMethodWithParams" icon-name="custom:custom63">
+        <div class="slds-m-around_medium">
+            <lightning-input type="search" class="slds-m-bottom_small" label="Search"></lightning-input>
+            <lightning-button label="Submit" onclick={handleKeyChange}></lightning-button>
+            <template if:true={contacts.data}>
+                <template for:each={contacts.data} for:item="contact">
+                    <p key={contact.Id}>{contact.Name}</p>
+                </template>
+            </template>
+            <template if:true={contacts.error}>
+                <p>{contacts.error}</p>>
+            </template>
+        </div>
+    </lightning-card>
+</template>
+
+wiredByParamsLwc.js
+-------------------
+import { LightningElement, wire} from 'lwc';
+import findContacts from '@salesforce/apex/ContactController.findContacts';
+
+
+export default class WireWithParamsLwc extends LightningElement {
+    searchKey= '';
+    @wire(findContacts, { searchKey: '$searchKey' })
+    contacts;
+
+    handleKeyChange(event) {
+        // Debouncing this method: Do not update the reactive property as long as this function is
+        // being called within a delay of DELAY. This is to avoid a very large number of Apex method calls.
+        window.clearTimeout(this.delayTimeout);
+        const searchKey = this.template.querySelector('lightning-input').value;
+        this.delayTimeout = setTimeout(() => {
+            this.searchKey = searchKey;
+        });
+    }
+   
+}
+
+ContactController.cls
+---------------------
+@auraEnabled(cacheable=true)
+    public static List<Contact> findContacts(String searchKey) {
+        String key = '%' + searchKey + '%';
+        return [
+            SELECT Id, Name, Title, Phone, Email
+            FROM Contact
+            WHERE Name LIKE :key
+        ];
+    }
+---------------------------------------------------------------------------------
+creating an errorpanel component which will be imported by different html to display errors
+
+errorPanel.html
+---------------
+<template>
+    <div class="slds-p-around_medium">
+        <lightning-icon icon-name="utility:error"></lightning-icon>
+        <div class="slds-p-around_small">
+            <p>{friendlyMessage}</p>
+            <template if:true={errorMessages.length}>
+                <div class="slds-p-vertical_x-small">
+                    <lightning-input
+                        label="Show Details"
+                        type="checkbox"
+                        onchange={handleCheckboxChange}
+                    ></lightning-input>
+                </div>
+                <template if:true={viewDetails}>
+                    <template for:each={errorMessages} for:item="message">
+                        <p key={message} class="error-message">{message}</p>
+                    </template>
+                </template>
+            </template>
+        </div>
+    </div>
+</template>
+
+errorPanel.js
+-------------
+import { LightningElement, api, track } from 'lwc';
+import { reduceErrors } from 'c/ldsUtils';	
+
+export default class ErrorPanel extends LightningElement {
+    /** Generic / user-friendly message */
+    @api friendlyMessage = 'Error retrieving data';
+
+    @track viewDetails = false;
+
+    /** Single or array of LDS errors */
+    @api errors;
+
+    get errorMessages() {
+        return reduceErrors(this.errors);
+    }
+
+    handleCheckboxChange(event) {
+        this.viewDetails = event.target.checked;
+    }
+}
+
+ldsUtils.js
+-----------
+/**
+* Reduces one or more LDS errors into a string[] of error messages.
+* @param {FetchResponse|FetchResponse[]} errors
+* @return {String[]} Error messages
+*/
+export function reduceErrors(errors) {
+
+    if (!Array.isArray(errors)) { 
+    errors = [errors];
+    
+    }  
+    return (
+    
+    errors
+    // Remove null/undefined items
+    .filter(error => !!error)
+    
+    // Extract an error message
+    .map(error => {
+    
+    // UI API read errors
+    if (Array.isArray(error.body)) { 
+    return error.body.map(e => e.message);
+     }
+    // UI API DML, Apex and network errors
+    
+    else if (error.body && typeof error.body.message === 'string') {
+    
+    return error.body.message;
+    
+    }
+    
+    // JS errors
+    
+    else if (typeof error.message === 'string') {
+    
+    return error.message;
+    
+    }
+    // Unknown error shape so try HTTP status text
+    return error.statusText;
+    })
+    // Flatten
+    .reduce((prev, curr) => prev.concat(curr), [])
+    // Remove empty strings
+    .filter(message => !!message)
+    
+    );
+    
+    }
+
+ldsUtils.js-meta.xml
+-------------------
+<?xml version="1.0" encoding="UTF-8"?>
+<LightningComponentBundle xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>47.0</apiVersion>
+    <isExposed>false</isExposed>
+</LightningComponentBundle>
+----------------------------------------------------------
+WRAPPER USE IN LWC
+
+wrapperUseInLwc.html
+--------------------
+<template>
+    <template if:true={contact.data}>
+        <template for:each={contact.data} for:item="i">
+            <li key={i.con.Id}>{i.con.Name}</li>
+            <lightning-input key={i.con.Id} type="checkbox" value={i.selected} ></lightning-input>    
+        </template>
+        <lightning-button label="Update Contacts" onclick={handlechange}></lightning-button>
+    </template>
+    <template if:true={contact.error}>
+        Some Error Occured...
+    </template>
+</template>
+
+wrapperUseInLwc.js
+------------------
+import { LightningElement,wire } from 'lwc';
+import getAllContacts from '@salesforce/apex/ContactController.getAllContacts';
+
+export default class WrapperUseInLwc extends LightningElement {
+    @wire(getAllContacts) contact;
+}
+
+ContactController.cls
+---------------------
+@AuraEnabled(cacheable=true)
+    public static list<WrapperClass> getAllContacts(){
+        list<Contact> conList=[select Id,Name,Email,MailingState from Contact];
+        list<WrapperClass> myList=new list<WrapperClass>();
+        for(Contact con:conList){
+            myList.add(new WrapperClass(con,false));
+        }
+        return myList;
+    }
+
+    class WrapperClass{
+        @AuraEnabled
+        public Contact con{get;set;}
+        @AuraEnabled
+        public Boolean selected{get;set;}
+        public WrapperClass(Contact con,Boolean selected){
+            this.con=con;
+            this.selected=selected;
+        }
+    }
