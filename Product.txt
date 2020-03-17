@@ -1,0 +1,76 @@
+public with sharing class ProductController {
+    public ProductController() {
+
+    }
+    @AuraEnabled
+    public static list<Product__c> getAllProducts(){
+        return [select Id,Name,Product_Id__c,Type__c,Price__c from Product__c ORDER BY Product_Id__c];
+    }
+}
+
+
+
+
+
+
+
+
+<template>
+    <div>
+        <lightning-record-edit-form object-api-name="Product__c" 
+            <template if:true={reloadForm}>
+                <lightning-messages></lightning-messages>
+                <lightning-input-field field-name="Product_Id__c" label="Enter Product Id"></lightning-input-field>
+                <lightning-input-field field-name="Name"></lightning-input-field>
+                <lightning-input-field field-name="Price__c"></lightning-input-field>
+                <lightning-input-field field-name="Type__c"></lightning-input-field>
+            </template>
+                <lightning-button
+                    class="slds-m-top_small"
+                    type="submit"
+                    label="ADD Product">
+                </lightning-button>
+        </lightning-record-edit-form>
+    </div>
+    <br/>
+    <div>
+        <lightning-datatable
+                key-field="id"
+                data={productList}
+                columns={columns}>
+        </lightning-datatable>
+    </div>  
+</template>
+
+
+
+import { LightningElement } from 'lwc';
+import getAllProducts from '@salesforce/apex/ProductController.getAllProducts'
+
+export default class ProductManagement extends LightningElement {
+    columns = [
+        { label: 'Product Id', fieldName: 'Product_Id__c' },
+        { label: 'Name', fieldName: 'Name'},
+        { label: 'Type', fieldName: 'Type__c'},
+        { label: 'Price', fieldName: 'Price__c', type: 'phone' },
+    ];
+    productList;
+    reloadForm=true;
+    constructor(){
+        super();
+        this.refreshList();
+    }
+    refreshList(){
+        getAllProducts()
+        .then(result=>{
+            this.productList=result;
+        })
+        .catch(error=>{
+            alert('Error while fetching data');
+        });
+    }
+    handleSuccess(){
+        this.refreshList();
+    }
+    
+}

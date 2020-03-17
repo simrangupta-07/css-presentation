@@ -1,0 +1,429 @@
+---------------OlaMain.html----------------
+<template>
+    <lightning-tabset>
+        <lightning-tab label="Cab Information">
+            <div class="mainDiv">
+                <div class="btns">
+                    <lightning-button-group>
+                        <lightning-button class="btn" name="Mini" label="Mini" onclick={showInfo} variant="brand"></lightning-button>
+
+                        <lightning-button class="btn" name="Micro" label="Micro" onclick={showInfo} variant="brand"></lightning-button>
+
+                        <lightning-button class="btn" name="Uber Select" label="Uber Select" onclick={showInfo} variant="brand"></lightning-button>
+
+                        <lightning-button class="btn" name="Suv" label="Suv" onclick={showInfo} variant="brand"></lightning-button>
+
+                    </lightning-button-group>
+                </div>
+
+                <template if:false={info}>
+                    <div class="demoDiv"></div>>
+                </template>
+                <template if:true={info}>
+
+                    <div class="container">
+                        <template for:each={info} for:item='driverInfo'>
+
+                            <c-info-display key={driverInfo.Id} driver={driverInfo}>
+                            </c-info-display>
+
+                        </template>
+                    </div>
+                </template>
+            </div>
+
+        </lightning-tab>
+
+        <lightning-tab label="Driver Application">
+            <lightning-button variant="brand" label="Click Here To Apply" title="Open Modal" onclick={openModal}
+                class="slds-m-left_x-small"></lightning-button>
+
+            <!-- modal start -->
+            <template if:true={bShowModal}>
+                <section role="dialog" tabindex="-1" aria-labelledby="modal-heading-01" aria-modal="true"
+                    aria-describedby="modal-content-id-1" class="slds-modal slds-fade-in-open">
+                    <div class="slds-modal__container">
+                        <!-- modal header start -->
+                        <header class="slds-modal__header">
+                            <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse"
+                                title="Close" onclick={closeModal}>
+                                <lightning-icon icon-name="utility:close" alternative-text="close" variant="inverse"
+                                    size="small"></lightning-icon>
+                                <span class="slds-assistive-text">Close</span>
+                            </button>
+                            <h2 id="modal-heading-01" class="slds-text-heading_medium slds-hyphenate">Driver Application</h2>
+                        </header>
+                        <!-- modal body start -->
+                        <div class="slds-modal__content slds-p-around_medium" id="modal-content-id-1">
+
+                            <lightning-record-form object-api-name='DriverInfo__c' fields={fields}
+                                onsuccess={handleSuccess} mode="new">
+                            </lightning-record-form>
+
+                        </div>
+                    </div>
+                </section>
+                <div class="slds-backdrop slds-backdrop_open"></div>
+            </template>
+            <!-- modal end -->
+        </lightning-tab>
+        <lightning-tab label="Book Cab">
+                <div class="mainDiv">
+                    <div class="btns">
+                        <lightning-button-group>
+                            <lightning-button class="btn" name="Mini" label="Mini" onclick={showInfo} variant="brand"></lightning-button>
+    
+                            <lightning-button class="btn" name="Micro" label="Micro" onclick={showInfo} variant="brand"></lightning-button>
+    
+                            <lightning-button class="btn" name="Uber Select" label="Uber Select" onclick={showInfo} variant="brand"></lightning-button>
+    
+                            <lightning-button class="btn" name="Suv" label="Suv" onclick={showInfo} variant="brand"></lightning-button>
+    
+                        </lightning-button-group>
+                    </div>
+    
+                    <template if:false={info}>
+                        <div class="demoDiv"></div>>
+                    </template>
+                    <template if:true={info}>
+    
+                        <div class="container">
+                            <template for:each={info} for:item='driverInfo'>
+    
+                                <c-book-cab key={driverInfo.Id} driver={driverInfo}>
+                                </c-book-cab>
+    
+                            </template>
+                        </div>
+                    </template>
+                </div>
+        </lightning-tab>
+    </lightning-tabset>
+
+
+</template>
+
+----------------OlaMain.css-----------------------
+.container {
+    clear: both;
+    float: left;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+}
+
+.show{
+    float: left;
+}
+.new{
+    float: right;
+}
+.btns{
+    width: 700px;
+    height: 30px;
+}
+.mainDiv{
+    height: 300px;
+}
+
+.demoDiv{
+    height: 300px;
+}
+
+
+--------------OlaMain.js-------------------
+import { LightningElement, track, api} from 'lwc';
+import getDriverInfo from '@salesforce/apex/olaController.getDriverInfo';
+import { NavigationMixin } from 'lightning/navigation';
+// import { encodeDefaultFieldValues } from 'lightning/pageReferenceUtils';
+import star from '@salesforce/resourceUrl/Star_Image';
+
+import { ShowToastEvent } from 'lightning/platformShowToastEvent';
+import Name from '@salesforce/schema/DriverInfo__c.Name';
+import Car_Type__c from '@salesforce/schema/DriverInfo__c.Car_Type__c';
+import Car_Name__c from '@salesforce/schema/DriverInfo__c.Car_Name__c';
+import Vehicle_Number__c from '@salesforce/schema/DriverInfo__c.Vehicle_Number__c';
+import Rating__c from '@salesforce/schema/DriverInfo__c.Rating__c';
+
+export default class OlaMain extends NavigationMixin(LightningElement) {
+
+
+    fields = [Name, Car_Type__c, Car_Name__c, Vehicle_Number__c, Rating__c];
+    @track info;
+    @track errors;
+    @api type = '';
+    starLogo = star;
+    showInfo(event) {
+        this.type = event.target.name;
+        console.log(this.type);
+        //
+        getDriverInfo({
+                type: this.type
+            })
+            .then(result => {
+                this.info = result;
+            })
+            .catch(error => {
+                this.errors = error;
+            });
+    }
+    @track bShowModal = false;
+
+    /* javaScipt functions start */
+    openModal() {
+        // to open modal window set 'bShowModal' tarck value as true
+        this.bShowModal = true;
+    }
+
+    closeModal() {
+        // to close modal window set 'bShowModal' tarck value as false
+        this.bShowModal = false;
+    }
+
+    handleSuccess(event) {
+        const evt = new ShowToastEvent({
+            title: "Driver created",
+            message: "Record ID: " + event.detail.id,
+            variant: "success"
+        });
+        this.dispatchEvent(evt);
+    }
+
+}
+
+
+
+----------infoDisplay.html---------------------
+<template>
+    <template if:true={driver}>
+        <div class="container">
+            <a onclick={editInfo}>
+                <lightning-card icon-name="standard:account" variant="narrow"></lightning-card>
+                {driver.Name}<br />
+                {driver.Car_Name__c}<br />
+                {driver.Car_Type__c}<br />
+                {driver.Vehicle_Number__c} <br />
+                {driver.Rating__c}<img class="img" src={starLogo} alt="star"><br />
+            </a>
+            <lightning-button-icon icon-name="utility:delete" alternative-text="Delete" class="slds-m-left_xx-small" title="Delete" onclick={deleteRecordInfo}></lightning-button-icon>             
+        </div>
+    </template>
+    <template if:false={driver}>
+        Please Select A Car Category
+    </template>
+</template>
+
+
+
+---------------------infoDisplay.js---------------------------------
+import {
+    LightningElement,
+    api
+} from 'lwc';
+import {
+    NavigationMixin
+} from 'lightning/navigation';
+import {
+    ShowToastEvent
+} from 'lightning/platformShowToastEvent';
+import star from '@salesforce/resourceUrl/Star_Image';
+import deleteDriverInfo from '@salesforce/apex/olaController.deleteDriverInfo';
+
+export default class InfoDisplay extends NavigationMixin(LightningElement) {
+
+    @api driver;
+    @api error;
+    starLogo = star;
+    editInfo(event) {
+        console.log('sds' + this.driver.Name);
+        console.log(this.starLogo);
+        this[NavigationMixin.Navigate]({
+            type: 'standard__recordPage',
+            attributes: {
+                recordId: this.driver.Id,
+                objectApiName: 'DriverInfo__c', // objectApiName is optional
+                actionName: 'edit'
+            }
+        });
+    }
+
+    deleteRecordInfo(event) {
+        
+        console.log(this.driver.Id);
+        deleteDriverInfo({
+                driver: this.driver.Id
+            })
+            .then()
+            .catch(error => {
+                this.error = error;
+            });
+
+        const evt = new ShowToastEvent({
+            title: "Driver deleted",
+            message: "Record ID: " + this.driver.Id,
+            variant: "success"
+        });
+        this.dispatchEvent(evt);
+        console.log('Deleted');
+        window.location.reload();
+
+    }
+}
+
+
+-----------------infoDisplay.css--------------------------
+
+.container {
+    border: 1px rgb(168, 166, 166) solid;
+    border-radius: 5px;
+    background-color: white;
+    margin:15px;
+    padding: 2px;
+    width: 115px;
+    display: flex;
+    float: left;
+    clear: both;
+}
+.img {
+    height: 13px;
+    width: 13px;
+    padding: none;
+}
+
+a:hover{
+    text-decoration: none;
+}
+
+
+---------------olaController.cls------------------------
+
+public with sharing class olaController {
+      @AuraEnabled(cacheable=true)
+      public static list<DriverInfo__c> getDriverInfo(String type){
+          //
+          return [Select Id,Name,Car_Type__c,Car_Name__c,Vehicle_Number__c,Rating__c from DriverInfo__c where Car_Type__c =: type];
+      }
+
+      @AuraEnabled
+      public static void deleteDriverInfo(String driver){
+          delete new DriverInfo__c(Id=driver);
+      }
+      public olaController() {
+
+      }
+}
+
+
+-----------------bookCab.html---------------------
+<template>
+    <template if:true={driver}>
+        <div class="container">
+            <template if:false={driver.Available__c}>
+                <a onclick={alreadyBooked} disabled="disabled">
+                    <lightning-card icon-name="standard:account" variant="narrow"></lightning-card>
+                    {driver.Name}<br />
+                    {driver.Car_Name__c}<br />
+                    {driver.Car_Type__c}<br />
+                    {driver.Vehicle_Number__c} <br />
+                    {driver.Rating__c}<img class="img" src={starLogo} alt="star"><br />
+                    <template if:true={driver.Available__c}>Available</template> <br />
+                    <template if:false={driver.Available__c}>Not Available</template> <br />
+                </a>
+
+            </template>
+            <template if:true={driver.Available__c}>
+                <a onclick={openModal}>
+                    <lightning-card icon-name="standard:account" variant="narrow"></lightning-card>
+                    {driver.Name}<br />
+                    {driver.Car_Name__c}<br />
+                    {driver.Car_Type__c}<br />
+                    {driver.Vehicle_Number__c} <br />
+                    {driver.Rating__c}<img class="img" src={starLogo} alt="star"><br />
+                    <template if:true={driver.Available__c}>Available</template> <br />
+                    <template if:false={driver.Available__c}>Not Available</template> <br />
+                </a>
+                <!-- modal start -->
+                <template if:true={bShowModal}>
+                    <section role="dialog" tabindex="-1" aria-labelledby="modal-heading-01" aria-modal="true"
+                        aria-describedby="modal-content-id-1" class="slds-modal slds-fade-in-open">
+                        <div class="slds-modal__container">
+                            <!-- modal header start -->
+                            <header class="slds-modal__header">
+                                <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse"
+                                    title="Close" onclick={closeModal}>
+                                    <lightning-icon icon-name="utility:close" alternative-text="close" variant="inverse"
+                                        size="small"></lightning-icon>
+                                    <span class="slds-assistive-text">Close</span>
+                                </button>
+                                <h2 id="modal-heading-01" class="slds-text-heading_medium slds-hyphenate">Unselect The Checkbox To Book This Cab </h2>
+                            </header>
+                            <!-- modal body start -->
+                            <div class="slds-modal__content slds-p-around_medium" id="modal-content-id-1">
+
+                                <lightning-record-form object-api-name='DriverInfo__c' fields={field} record-id={driver.Id}
+                                    onsuccess={handleSuccess} mode="edit">
+                                </lightning-record-form>
+
+                            </div>
+                        </div>
+                    </section>
+                    <div class="slds-backdrop slds-backdrop_open"></div>
+                </template>
+                <!-- modal end -->
+            </template>
+        </div>
+    </template>
+    <template if:false={driver}>
+        Please Select A Car Category
+    </template>
+</template>
+
+-----------------------------------bookCab.js-------------------------------------
+
+import { LightningElement, api, track} from 'lwc';
+import { NavigationMixin } from 'lightning/navigation';
+import { ShowToastEvent } from 'lightning/platformShowToastEvent';
+import star from '@salesforce/resourceUrl/Star_Image';
+import Available__c from '@salesforce/schema/DriverInfo__c.Available__c';
+
+export default class BookCab extends NavigationMixin(LightningElement) {
+
+    @api driver;
+    @api error;
+    starLogo = star;
+    @track bShowModal = false;
+
+    field = [Available__c];
+
+    openModal() {
+        // to open modal window set 'bShowModal' tarck value as true
+        this.bShowModal = true;
+    }
+
+    closeModal() {
+        // to close modal window set 'bShowModal' tarck value as false
+        this.bShowModal = false;
+    }
+
+    handleSuccess(event) {
+        const evt = new ShowToastEvent({
+            title: "Cab Booked",
+            variant: "success"
+        });
+        this.dispatchEvent(evt);
+        location.reload();
+    }
+
+    alreadyBooked(event){
+        
+        const evt = new ShowToastEvent({
+            title: "Driver Not Available",
+            variant: "danger"
+        });
+        this.dispatchEvent(evt);
+
+    }
+
+}
+
+

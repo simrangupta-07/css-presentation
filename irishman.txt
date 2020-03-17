@@ -1,0 +1,58 @@
+MobileCOntroller class
+----------------------------------------------------------------------------
+
+
+public with sharing class MobileController {
+    public MobileController() {
+
+    }
+
+    @AuraEnabled(cacheable=true)
+    public static List<Mobile__c> getList() {
+        return [SELECT Mobile_Id__c,Name,Price__c,Brand__c FROM Mobile__c LIMIT 10];
+    }
+}
+
+---------------------------------------------------------------
+mobile_Management.js
+
+import { LightningElement, track, api, wire } from 'lwc';
+import { updateRecord } from 'lightning/uiRecordApi';
+import { deleteRecord } from 'lightning/uiRecordApi';
+import { refreshApex } from '@salesforce/apex';
+import MB from '@salesforce/schema/Mobile__c';
+import MobileName from '@salesforce/schema/Mobile__c.Name';
+import MobileId from '@salesforce/schema/Mobile__c.Mobile_Id__c';
+import MobileBrand from '@salesforce/schema/Mobile__c.Brand__c';
+import MobilePrice from '@salesforce/schema/Mobile__c.Price__c';
+
+import getList from '@salesforce/apex/MobileController.getList';
+
+const inputs = [
+    {label: 'Mobile_Id', fieldName: 'Mobile_Id__c', editable: true},
+    {label: 'Mobile_Name', fieldName: 'Name', editable: true},
+    {label: 'Mobile_Price', fieldName: 'Price__c', editable: true},
+    {label: 'Mobile_Brand', fieldName: 'Brand__c', editable: true}
+]
+
+export default class Mobile_Management extends LightningElement {
+
+
+}
+
+---------------------------------------------------------------
+mobile_Management.html
+
+<template>
+    <lightning-card title="Mobile Management" icon-name="custom:custom63">
+
+        <lightning-record-form
+            object-api-name='Mobile__c'
+            fields={fields}
+            onsuccess={handleSuccess}>
+        </lightning-record-form>
+
+
+        
+    </lightning-card>
+</template>

@@ -1,0 +1,394 @@
+olaBookingPage.html
+
+<template>
+    <lightning-tabset>
+        <lightning-tab label="Form">
+            <div style="align-items: center;">
+            <fieldset class="slds-box slds-theme--default slds-container--small" >
+                <lightning-record-edit-form object-api-name={OLAOBJ} onsuccess={createEntry}>
+                    <lightning-messages></lightning-messages>
+                    <div  class="slds-form-element">
+                        <div>
+                            Booking Id : <lightning-input disabled field-name={bid} value={bid} class="slds-input"></lightning-input><br/>
+                        </div>
+                        <div>
+                            Car type : <select onchange={handleNewCartype} class="slds-select">
+                                        <option value="">choose one...</option>
+                                        <option value="Auto">Auto</option>
+                                        <option value="Mini">Mini</option>
+                                        <option value="Micro">Micro</option>
+                                        <option value="Prime">Prime</option>
+                                        <option value="Share">Share</option>
+                                        <option value="Rental">Rental</option>
+                                        <option value="Outstation">Outstation</option>
+                                    </select><br/>
+                            
+                            <lightning-input onchange={handleNewcustomer} label="Cust Name" field-name={customer} class="slds-input"></lightning-input><br/>
+                        </div>
+                        <div>
+                            <lightning-input label="Drop Location" onchange={handleNewdropLocation} field-name={droplocation} class="slds-input"></lightning-input><br/>
+                            <lightning-input label="Pickup Location" onchange={handleNewpickupLocation} field-name={pickLocation} class="slds-input"></lightning-input><br/>
+                        </div>
+                        <div>
+                            <lightning-input label="Phone" onchange={handleNewphone} field-name={phone} class="slds-input"></lightning-input><br/>
+                        </div>
+                     </div>
+                    <lightning-button type="submit" variant="brand" label="Book your Ride"></lightning-button>
+                </lightning-record-edit-form>
+            </fieldset>
+        </div>
+        </lightning-tab>
+        <lightning-tab label="Record Page" title="Pre existing entries">
+            <c-record-page></c-record-page>
+        </lightning-tab>
+    </lightning-tabset>
+    
+<!-- <div class="slds-m-around_medium">
+    
+</div> -->
+
+
+</template>
+
+
+olaBookingPage.js
+
+import { LightningElement,wire, track } from 'lwc';
+import { createRecord } from 'lightning/uiRecordApi';
+import { ShowToastEvent } from 'lightning/platformShowToastEvent';
+import getOlaRec from '@salesforce/apex/OlaRec.olaRecords';
+import olaObject from '@salesforce/schema/OlaBooking__c';
+import carType from '@salesforce/schema/OlaBooking__c.Cab_Type__c';
+import CustName from '@salesforce/schema/OlaBooking__c.Customer_Name__c';
+import dropLocation from '@salesforce/schema/OlaBooking__c.Drop_Location__c';
+import Phone from '@salesforce/schema/OlaBooking__c.Phone__c';
+import pickLocation from '@salesforce/schema/OlaBooking__c.PickUp_location__c';
+
+export default class OlaBookingPage extends LightningElement {
+    bid;
+ 
+ 
+    OLAOBJ = olaObject;
+    cartype;
+    customer;
+    droplocation;
+    phone;
+    picklocation;
+
+    handleNewCartype(event){
+        this.bid = undefined;
+        this.cartype = event.target.value;
+    }
+    handleNewcustomer(event){
+        this.customer = event.target.value;
+    }
+    handleNewdropLocation(event){
+        this.droplocation = event.target.value;
+    }
+    handleNewpickupLocation(event){
+        this.picklocation = event.target.value;
+    }
+    
+    handleNewphone(event){
+        this.phone = event.target.value;
+    }
+    
+    createEntry(){
+        const fields={};
+        
+        //Jab success hoga tb chalega
+
+        fields[carType.fieldApiName] = this.cartype;
+        fields[CustName.fieldApiName] = this.customer;
+        fields[dropLocation.fieldApiName] = this.droplocation;
+        fields[pickLocation.fieldApiName] = this.picklocation;
+        fields[Phone.fieldApiName] = this.phone;
+        const recordInput = { apiName :  olaObject.objectApiName, fields};
+        createRecord(recordInput).then(olabooking => {
+            this.bid = olabooking.id;
+            this.dispatchEvent(
+                new ShowToastEvent({
+                    title: 'Success',
+                    message: 'Account created',
+                    variant: 'success',
+                }),
+            );
+        })
+        .catch(error => {
+            this.dispatchEvent(
+                new ShowToastEvent({
+                    title: 'Error creating record',
+                    message: error.body.message,
+                    variant: 'error',
+                }),
+            );
+        });
+
+
+        console.log(fields);
+
+        
+
+    }
+
+}
+
+
+olaBookingPage.js-meta
+
+<?xml version="1.0" encoding="UTF-8"?>
+<LightningComponentBundle xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>47.0</apiVersion>
+    <isExposed>true</isExposed>
+    <targets>
+        <target>lightning__AppPage</target>
+        <target>lightning__RecordPage</target>
+    </targets>
+</LightningComponentBundle>
+
+
+
+recordPage.html
+
+<template>
+    <template if:true={employees}>
+        <lightning-datatable
+                key-field="id"
+                data={employees}
+                columns={columns}>
+        </lightning-datatable>
+    </template>
+    <template if:true={error}>
+        <p>Some unexpected Error!!!!</p>
+    </template>
+</template>
+
+
+
+recordPage.js
+
+import { LightningElement,wire, track } from 'lwc';
+import getOlaRec from '@salesforce/apex/OlaRec.olaRecords';
+const col=[
+    {label:'Cab Type',fieldName:'Cab_Type__c'},
+    {label:'Name',fieldName:'Customer_Name__c'},
+    {label:'Phone Number',fieldName:'Phone__c'}
+]
+
+export default class RecordPage extends LightningElement {
+    @track columns=col;
+    @track employees;
+    @track error;
+    
+    @wire(getOlaRec)
+        wiredRecords({error,data})
+        {
+            console.log('groot');
+            if(data){
+                this.employees=data;
+                this.error=undefined;
+            }
+            if(error){
+                this.employees=undefined;
+                this.error=error;
+            } 
+        }
+}
+
+
+
+
+recordPage.js-meta
+
+<?xml version="1.0" encoding="UTF-8"?>
+<LightningComponentBundle xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>47.0</apiVersion>
+    <isExposed>true</isExposed>
+    <targets>
+        <target>lightning__AppPage</target>
+        <target>lightning__RecordPage</target>
+    </targets>
+</LightningComponentBundle>
+
+
+
+
+OlaRec.cls
+
+public with sharing class OlaRec {
+	@AuraEnabled(cacheable=true)
+    public static List<olaBooking__c> olaRecords() {
+    	return [SELECT Customer_Name__c, Cab_Type__c, Phone__c from olaBooking__c limit 10];
+	}
+
+
+}
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------
+
+.html----------------------------------------------------------------------------------
+<template>
+    <lightning-card footer="Card Footer" title="Employye Management">
+        <lightning-button-group>
+            <lightning-button label="NEW" onclick={createEmployee}></lightning-button>
+            <lightning-button label="EDIT" onclick={editEmployee}></lightning-button>
+            <lightning-button label="DELETE" onclick={deleteEmployeeView}></lightning-button>
+        </lightning-button-group>
+        <br/><br/>
+        <div>
+            <lightning-datatable
+                    key-field="id"
+                    data={empList}
+                    columns={columns}>
+            </lightning-datatable>
+        </div>    
+    </lightning-card>
+
+    <template if:true={bShowModal}>
+        <section role="dialog" tabindex="-1" aria-labelledby="modal-heading-01" aria-modal="true" aria-describedby="modal-content-id-1" class="slds-modal slds-fade-in-open">
+           <div class="slds-modal__container">
+              <!-- modal header start -->
+              <header class="slds-modal__header">
+                 <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" title="Close" onclick={closeModal}>
+                    <lightning-icon icon-name="utility:close"
+                       alternative-text="close"
+                       variant="inverse"
+                       size="small" ></lightning-icon>
+                    <span class="slds-assistive-text">Close</span>
+                 </button>
+                 <h2 id="modal-heading-01" class="slds-text-heading_medium slds-hyphenate">Create New Emplyee</h2>
+              </header>
+              <!-- modal body start -->
+              <div class="slds-modal__content slds-p-around_medium" id="modal-content-id-1">
+                <template if:true={showNew}>
+                    <lightning-record-form
+                    object-api-name='Employee_data__c'
+                    fields={fields}
+                    onsuccess={closeModal}
+                    oncancel={closeModal}>
+                    </lightning-record-form>
+                </template>	
+                <template if:true={showEditForm}>
+                    <lightning-record-form
+                            record-id={editId}
+                            object-api-name='Employee_data__c'
+                            fields={fields}
+                            columns="2"
+                            mode="edit"
+                            onsuccess={closeModal}>
+                    </lightning-record-form>
+                </template>
+              </div>
+           </div>
+        </section>
+        <div class="slds-backdrop slds-backdrop_open"></div>
+     </template>
+
+
+
+</template>
+
+
+
+
+.js-------------------------------------------------------------------------------------------------------
+import { LightningElement, wire } from 'lwc';
+import getEmployee from '@salesforce/apex/EmployeeController.getEmployee';
+import deleteEmployee from '@salesforce/apex/EmployeeController.deleteEmployee';
+import NAME_FIELD from '@salesforce/schema/Employee_data__c.Name';
+import Email_FIELD from '@salesforce/schema/Employee_data__c.Email__c';
+import Company_FIELD from '@salesforce/schema/Employee_data__c.Company__c';
+
+
+export default class EmployeeManagement extends LightningElement {
+    fields = [NAME_FIELD, Email_FIELD, Company_FIELD];
+    showNew=false;
+    showEditForm=false;
+    bShowModal=false;
+    empList;
+    editId;
+    columns = [
+        { label: 'Name', fieldName: 'Name' },
+        { label: 'Email', fieldName: 'Email__c'},
+        { label: 'Company', fieldName: 'Company__c'}
+    ];
+    connectedCallback(){
+       this.refreshList();
+    }
+    refreshList(){
+        getEmployee()
+        .then(result=>{
+            this.empList=result;
+        });
+    }
+
+    createEmployee(){
+        this.showNew=true;
+        this.bShowModal=true;
+    }
+    editEmployee(){
+        this.editId=this.template.querySelector('lightning-datatable').getSelectedRows()[0].Id;
+        console.log(this.editId);
+        this.showEditForm=true;
+        this.bShowModal=true;
+    }
+    deleteEmployeeView(){
+        var n=this.template.querySelector('lightning-datatable').getSelectedRows().length;
+        console.log('length : ' + n);
+        var i;
+        var idList=[];
+        for(i=0;i<n;i++){
+            idList[i]=(this.template.querySelector('lightning-datatable').getSelectedRows()[i].Id);
+        }
+        console.log('list of Id ' + idList);
+        deleteEmployee({'idList':idList})
+            .then(result=>{
+                console.log('Deleted ' + result);
+                this.refreshList();
+            });
+    }
+
+    closeModal(){
+        this.refreshList();
+        this.bShowModal=false;
+        this.showNew=false;
+        this.showEditForm=false;
+    }
+
+}
+
+
+Controller---------------------------------------------------------------------------------------
+public with sharing class EmployeeController {
+    public EmployeeController() {
+
+    }
+    @AuraEnabled
+    public static list<Employee_data__c> getEmployee(){
+        return [select Id,Name,Email__c,Company__c from Employee_data__c];
+    }
+    @AuraEnabled
+    public static String deleteEmployee(list<Id> idList){
+        list<Employee_data__c> empList=new list<Employee_data__c>();
+        for(Id id:idList){
+            empList.add(new Employee_data__c(Id=id));
+        }
+        delete empList;
+        return 'hello';
+    }
+}
+
+
+.xml-------------------------------------------------------------------------------
+<?xml version="1.0" encoding="UTF-8"?>
+<LightningComponentBundle xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>47.0</apiVersion>
+    <isExposed>true</isExposed>
+    <targets>
+        <target>lightning__AppPage</target>
+    </targets>
+</LightningComponentBundle>

@@ -1,0 +1,179 @@
+------------------------------------------------newEmployeeApp.html------------------------------------------------------------
+
+<template>
+    <lightning-card title="Datatable Example" icon-name="custom:custom63">
+
+        <lightning-record-form
+            object-api-name='EmployeeData__c'
+            fields={fields}
+            onsuccess={handleSuccess}>
+        </lightning-record-form>
+
+
+        <div class="slds-m-around_medium">
+            <template if:true={emps.data}>
+                <lightning-datatable
+                    key-field="Id"
+                    data={emps.data}
+                    columns={columns}
+                    onsave={handleSave}
+                    onrowselection={handleClickAdd}
+                    draft-values={draftValues}>
+                </lightning-datatable><br/>
+                <center><lightning-button variant="destructive" 
+                    label="Delete" 
+                    icon-name="utility:delete"
+                    icon-position="right"
+                    onclick={deleteRec}></lightning-button></center>
+            </template>
+            <template if:true={emps.error}>
+                <!-- handle Apex error -->
+            </template>
+        </div>
+    </lightning-card>
+</template>
+
+
+---------------------------------------------newEmployeeApp.js------------------------------------------------------------------
+
+
+import { LightningElement, wire, track, api } from 'lwc';
+import { updateRecord } from 'lightning/uiRecordApi';
+import { deleteRecord } from 'lightning/uiRecordApi';
+import { refreshApex } from '@salesforce/apex';
+import ID_FIELD from '@salesforce/schema/EmployeeData__c.Id';
+import { ShowToastEvent } from 'lightning/platformShowToastEvent';
+import NAME_FIELD from '@salesforce/schema/EmployeeData__c.Name';
+import COMPANY_FIELD from '@salesforce/schema/EmployeeData__c.Company__c';
+import getList from '@salesforce/apex/EmpController.getList';
+
+
+const COLS = [
+    { label: 'Name', fieldName: 'Name', editable: true },
+    { label: 'Company', fieldName: 'Company__c', editable: true }
+];
+export default class NewEmployeeApp extends LightningElement {
+
+    @track error;
+    @track columns = COLS;
+    @track draftValues = [];
+
+    @track recId;
+    @wire(getList)
+    emps;
+
+    fields = [NAME_FIELD, COMPANY_FIELD];
+
+    handleSuccess(event) {
+        const evt = new ShowToastEvent({
+            title: "Account created",
+            message: "Record ID: " + event.detail.id,
+            variant: "success"
+        });
+        this.dispatchEvent(evt);
+        location.reload();
+    }
+
+    handleClickAdd() {
+
+        var el = this.template.querySelector('lightning-datatable');
+        var selected = el.getSelectedRows();
+        let selectedIdsArray = [];
+
+        for (const element of selected) {
+            //console.log('elementid', element.Id);
+            selectedIdsArray.push(element.Id);
+        }
+        this.recId = selectedIdsArray[0];
+        console.log(this.recId);
+    }
+
+    deleteRec(event) {
+        deleteRecord(this.recId)
+            .then(() => {
+                this.dispatchEvent(
+                    new ShowToastEvent({
+                        title: 'Success',
+                        message: 'Record deleted',
+                        variant: 'success'
+                    })
+                );
+            })
+            .catch(error => {
+                this.dispatchEvent(
+                    new ShowToastEvent({
+                        title: 'Error deleting record',
+                        message: error.body.message,
+                        variant: 'error'
+                    })
+                );
+            });
+            location.reload();
+    }
+
+    handleSave(event) {
+
+        const fields = {};
+        fields[ID_FIELD.fieldApiName] = event.detail.draftValues[0].Id;
+        fields[NAME_FIELD.fieldApiName] = event.detail.draftValues[0].Name;
+        fields[COMPANY_FIELD.fieldApiName] = event.detail.draftValues[0].Company__c;
+
+        const recordInput = {fields};
+
+        updateRecord(recordInput)
+        .then(() => {
+            this.dispatchEvent(
+                new ShowToastEvent({
+                    title: 'Success',
+                    message: 'Data updated',
+                    variant: 'success'
+                })
+            );
+            // Clear all draft values
+            this.draftValues = [];
+
+            // Display fresh data in the datatable
+            return refreshApex(this.emps);
+        }).catch(error => {
+            this.dispatchEvent(
+                new ShowToastEvent({
+                    title: 'Error creating record',
+                    message: error.body.message,
+                    variant: 'error'
+                })
+            );
+        });
+    }
+}
+
+
+------------------------------------------------newEmployeeApp.js-meta.xml----------------------------------------------
+
+<?xml version="1.0" encoding="UTF-8"?>
+<LightningComponentBundle xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>48.0</apiVersion>
+    <isExposed>true</isExposed>
+    <targets>
+        <target>lightning__HomePage</target>
+        <target>lightning__AppPage</target>
+    </targets>
+</LightningComponentBundle>
+
+
+
+----------------------------------------------EmpController.cls---------------------------------------------------------
+
+
+public with sharing class EmpController {
+    public EmpController() {
+
+    }
+    @AuraEnabled(cacheable=true)
+    public static List<EmployeeData__c> getList() {
+        return [SELECT Id, Name, Company__c FROM EmployeeData__c LIMIT 10];
+    }
+    @AuraEnabled
+    public static void deleteRecord(String recId) {
+        delete new EmployeeData__c(Id = recId);
+    }
+}

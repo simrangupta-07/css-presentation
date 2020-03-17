@@ -944,3 +944,106 @@ ContactController.cls
             this.selected=selected;
         }
     }
+-----------------------------------------------------------------------
+LINL FOR ASYNCHRONOUS APEX
+
+http://www.salesforcenextgen.com/asynchronous-apex/
+-------------------------------------------------------------------------
+MIXED DML EXCEPTION
+------------------
+public class MixedDml {
+    public static void MixedException() {
+
+        Account a = new Account(Name='Simran');
+
+        insert a;
+          Profile p = [SELECT Id FROM Profile WHERE Name='Standard User'];
+        UserRole r = [SELECT Id FROM UserRole WHERE Name='COO'];
+        User u = new User(alias = 'mruiz', email='mruiz@awcomputing.com',
+
+            emailencodingkey='UTF-8', lastname='Ruiz',
+
+            languagelocalekey='en_US',
+
+            localesidkey='en_US', profileid = p.Id, userroleid = r.Id,
+
+            timezonesidkey='America/Los_Angeles',
+
+            username='mruiz@awcomputing.com');
+        insert u;
+        
+
+    }
+} 
+
+executeanonymous window
+-----------------------
+MixedDml.MixedException();
+
+IT WILL DISPLAY THE FOLLOWING ERROR:
+system.DmlException: Insert failed. First exception on row 0; first error: MIXED_DML_OPERATION, DML operation on setup object is not permitted after you have updated a non-setup object (or vice versa): User, original object: Account: []
+-------------------------------------------------------------------------------------------
+FUTURE ASYNC APEX METHOD:
+
+ContactHandler.cls
+------------------
+/*@future public static void createContactFuture(set <Id> accIdList)
+    {
+        list<Contact> conlist = new list<Contact>();
+        Contact con;
+        for(Account acc: [select Id, Active__c, Name from Account where Id In:accIdList])
+        {
+            if(acc.Active__c == 'Yes')
+            {
+                con = new Contact(LastName= acc.Name + '-Contact', AccountId= acc.Id);
+            }
+            conlist.add(con);
+        }*/
+     @future public static void createContactFuture(String accJasonStringList)
+     {
+        list<Contact> conlist = new list<Contact>();
+        Contact con;
+        for(Account acc: (list <Account>JSON.deserialize(accJasonStringList, list<Account>.class)))
+        {
+            if(acc.Active__c == 'Yes')
+            {
+                con = new Contact(LastName= acc.Name + '-Contact', AccountId= acc.Id);
+            }
+            conlist.add(con);
+        }
+    
+        if(!conlist.isEmpty())
+        {
+            insert conlist;
+        }
+        
+    }
+------------------------------------------------------------------------------------------------
+BATCH ASYNC APEX METHOD
+
+LeadDeleterBatch.cls
+--------------------
+public with sharing class LeadDeleterBatch implements Database.Batchable <SObject> {
+    public LeadDeleterBatch() {
+
+    }
+    //public list <Lead> start(Database.BatchableContext context) //fetches and returns the data
+    public Database.QueryLocator start(Database.BatchableContext context)//to  avoid the limit(50,000) of records a list can return
+    {
+        //return [select Id from Lead where Rating = 'Cold' limit 10];
+        return Database.getQueryLocator('select Id from Lead where Rating = \'Cold\'');  //Query using QueryLocator and it can manage 50 million records
+    }
+    public void execute(Database.BatchableContext context, list<Lead> leadToProcessList)
+    {
+        delete leadToProcessList;
+    }
+    public void finish(Database.BatchableContext context)
+    {
+        //post execution logic which will run at the end of batch
+    }
+}
+
+executeanonymous window
+-----------------------
+LeadDeleterBatch deleterBatch = new LeadDeleterBatch();
+Database.executeBatch(deleterBatch, 2);
